@@ -1,0 +1,37 @@
+name: Frontend CD (Develop → Main Merge)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build & Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./
+          file: ./Dockerfile
+          push: true
+          build-args: VITE_API_URL=${{ secrets.VITE_API_URL }}
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/url-shortener-client:${{ github.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/url-shortener-client:latest
+
+      - name: Deploy to Vercel Production
+        run: npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+        env:
+          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
